@@ -24,11 +24,12 @@ alpha = 255
 points = []
 start_id = -1
 end_id = -1
+pending_start = -1
 path = []
 drag_id = -1
 link_id = -1
 expanded = 1
-groups = [[0,99], [90, 9], [20,0]]
+groups = []
 all_paths = []
 
 def setup_grid(columns, rows, grid_size):
@@ -226,7 +227,7 @@ def recursive_draw(path, every_path):
         line_end = (points[child[0]][0], points[child[0]][1])
         pygame.draw.line(screen, (200, 255, 200), line_start, line_end, 12)
         recursive_draw(path+[2,i], every_path)
-    display = font2.render("Finding Path", True, (255, 255, 255)).convert_alpha()     
+    display = font2.render("Finding Path", True, (255, 255, 255)).convert_alpha()
     display.set_alpha(255)
     screen.blit(display,(10,10))
 
@@ -235,11 +236,20 @@ def delete_point():
     point = find_closest()
     if point == -1:
         return
-    for i, group in enumerate(groups):
-        if point in group:
-            groups.pop(i)
-            all_paths = []
-            return
+    grouped = 0
+    for i, group in enumerate(groups[:]):
+        for idx in range(2):
+            if group[idx] == point:
+                groups.pop(i)
+                grouped = 1
+                break
+            elif group[idx] > point:
+                group[idx] -= 1
+        if grouped:
+            break
+    if grouped:
+        all_paths = []
+        return
     for i in points:
         if point in i[2]:
             idx = i[2].index(point)
@@ -249,10 +259,6 @@ def delete_point():
         for idx, connection in enumerate(i[2]):
             if connection > point:
                 i[2][idx] -= 1
-    for group in groups:
-        for idx in range(2):
-            if group[idx] > point:
-                group[idx] -= 1
     if link_id == point:
         link_id = -1
     elif link_id > point:
@@ -264,65 +270,73 @@ def draw_current_path(every_path):
     recursive_draw([], every_path)
 
 async def main():
-    global alpha, display, all_paths, points, start_id, end_id, drag_id, link_id, groups
+    global alpha, display, all_paths, points, start_id, end_id, drag_id, link_id, groups, pending_start
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_c and drag_id == -1:
-                    all_paths = []
-                    if groups != []:
-                        for i in groups:
-                            shortest_path(i[0], i[1])
-                        display = font2.render("Found Path/Paths", True, (255, 255, 255)).convert_alpha()
+                if event.key == pygame.K_s and drag_id == -1:
+                    if pending_start == -1:
+                        find_closest_start()
+                        pending_start = start_id
                     else:
-                        display = font2.render("No Points", True, (255, 255, 255)).convert_alpha()     
-                    alpha = 500
-                elif event.key == pygame.K_d and drag_id == -1:
-                    start_id = -1
-                    end_id = -1
-                    link_id = -1
-                    setup_grid(10, 10, 75)
-                    display = font2.render("", True, (255, 255, 255)).convert_alpha()
-                    alpha = 500
-                    groups = []
-                    all_paths = []
-                elif event.key == pygame.K_s and drag_id == -1:
-                    find_closest_start()
-                elif event.key == pygame.K_e and drag_id == -1:
-                    find_closest_end()
-                elif event.key == pygame.K_r and drag_id == -1:
-                    start_id = -1
-                    end_id = -1
-                    link_id = -1
-                    points = []
-                    all_path = []
-                    groups = []
-                elif event.key == pygame.K_BACKSPACE:
-                    delete_point()
-                elif event.key == pygame.K_a and drag_id == -1:
-                    hovered = find_hovered()
-                    if hovered != -1:
-                        if link_id == -1:
-                            link_id = hovered
-                        elif link_id != hovered and hovered not in points[link_id][2]:
-                            dist = round((((points[link_id][0]-points[hovered][0])**2+(points[link_id][1]-points[hovered][1])**2)**0.5)/20)
-                            points[link_id][2].append(hovered)
-                            points[hovered][2].append(link_id)
-                            points[link_id][3].append(dist)
-                            points[hovered][3].append(dist)
-                            link_id = -1
+                        find_closest_end()
+                        if pending_start != end_id:
+                            groups.append([pending_start, end_id])
+                        pending_start = -1
+                elif pending_start == -1:
+                    if event.key == pygame.K_c and drag_id == -1:
+                        all_paths = []
+                        if groups != []:
+                            for i in groups:
+                                shortest_path(i[0], i[1])
+                            display = font2.render("Found Path/Paths", True, (255, 255, 255)).convert_alpha()
                         else:
-                            link_id = -1
-                    else:
-                        mouse_x, mouse_y = pygame.mouse.get_pos()
-                        points.append([mouse_x, mouse_y, [], []])
+                            display = font2.render("No Points", True, (255, 255, 255)).convert_alpha()
+                        alpha = 500
+                    elif event.key == pygame.K_d and drag_id == -1:
+                        start_id = -1
+                        end_id = -1
                         link_id = -1
+                        setup_grid(10, 10, 75)
+                        display = font2.render("", True, (255, 255, 255)).convert_alpha()
+                        alpha = 500
+                        groups = []
+                        all_paths = []
+                    elif event.key == pygame.K_e and drag_id == -1:
+                        find_closest_end()
+                    elif event.key == pygame.K_r and drag_id == -1:
+                        start_id = -1
+                        end_id = -1
+                        link_id = -1
+                        points = []
+                        all_paths = []
+                        groups = []
+                    elif event.key == pygame.K_BACKSPACE:
+                        delete_point()
+                    elif event.key == pygame.K_a and drag_id == -1:
+                        hovered = find_hovered()
+                        if hovered != -1:
+                            if link_id == -1:
+                                link_id = hovered
+                            elif link_id != hovered and hovered not in points[link_id][2]:
+                                dist = round((((points[link_id][0]-points[hovered][0])**2+(points[link_id][1]-points[hovered][1])**2)**0.5)/20)
+                                points[link_id][2].append(hovered)
+                                points[hovered][2].append(link_id)
+                                points[link_id][3].append(dist)
+                                points[hovered][3].append(dist)
+                                link_id = -1
+                            else:
+                                link_id = -1
+                        else:
+                            mouse_x, mouse_y = pygame.mouse.get_pos()
+                            points.append([mouse_x, mouse_y, [], []])
+                            link_id = -1
         screen.fill((0, 0, 0))
         left_down, middle_down, right_down = pygame.mouse.get_pressed()
-        if left_down and len(points) > 0:
+        if left_down and len(points) > 0 and pending_start == -1:
             if drag_id == -1:
                 drag_id = find_closest()
             drag(drag_id)
