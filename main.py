@@ -32,6 +32,11 @@ expanded = 1
 groups = []
 all_paths = []
 
+def show_message(message):
+    global display, alpha
+    display = font2.render(message, True, (255, 255, 255)).convert_alpha()
+    alpha = 255
+
 def setup_grid(columns, rows, grid_size):
     global points
     points = []
@@ -50,6 +55,7 @@ def setup_grid(columns, rows, grid_size):
                     n = random.randint(0,10)
                     p[3].append(n)
                     p2[3].append(n)
+
 def contains(item, list):
     return_val = ""
     for i in list:
@@ -68,6 +74,7 @@ def contains(item, list):
     if return_val != "":
         return return_val
     return None
+
 def draw_path(path):
     if len(path) > 0:
         for i in range(len(path)-1):
@@ -171,7 +178,6 @@ def shortest_path(start_id, end_id):
         all_paths.append(path)
     print(path)
 
-
 def find_closest_start():
     global start_id
     if len(points) == 0:
@@ -249,6 +255,7 @@ def delete_point():
             break
     if grouped:
         all_paths = []
+        show_message("Group Deleted")
         return
     for i in points:
         if point in i[2]:
@@ -265,6 +272,7 @@ def delete_point():
         link_id -= 1
     points.pop(point)
     all_paths = []
+    show_message("Point Deleted")
 
 def draw_current_path(every_path):
     recursive_draw([], every_path)
@@ -277,63 +285,77 @@ async def main():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_s and drag_id == -1:
-                    if pending_start == -1:
-                        find_closest_start()
-                        pending_start = start_id
-                    else:
+                if pending_start != -1:
+                    if event.key == pygame.K_s and drag_id == -1:
                         find_closest_end()
-                        if pending_start != end_id:
+                        if end_id != -1 and pending_start != end_id:
                             groups.append([pending_start, end_id])
+                            show_message("End Set - Pair Added")
+                        else:
+                            show_message("Invalid End - Try Again")
                         pending_start = -1
-                elif pending_start == -1:
-                    if event.key == pygame.K_c and drag_id == -1:
-                        all_paths = []
-                        if groups != []:
-                            for i in groups:
-                                shortest_path(i[0], i[1])
-                            display = font2.render("Found Path/Paths", True, (255, 255, 255)).convert_alpha()
+                elif event.key == pygame.K_s and drag_id == -1:
+                    find_closest_start()
+                    if start_id != -1:
+                        pending_start = start_id
+                        show_message("Start Set - Press S For End")
+                elif event.key == pygame.K_c and drag_id == -1:
+                    all_paths = []
+                    if groups != []:
+                        show_message("Finding Path")
+                        for i in groups:
+                            shortest_path(i[0], i[1])
+                        if all_paths:
+                            show_message("Found Path/Paths")
                         else:
-                            display = font2.render("No Points", True, (255, 255, 255)).convert_alpha()
-                        alpha = 500
-                    elif event.key == pygame.K_d and drag_id == -1:
-                        start_id = -1
-                        end_id = -1
-                        link_id = -1
-                        setup_grid(10, 10, 75)
-                        display = font2.render("", True, (255, 255, 255)).convert_alpha()
-                        alpha = 500
-                        groups = []
-                        all_paths = []
-                    elif event.key == pygame.K_e and drag_id == -1:
-                        find_closest_end()
-                    elif event.key == pygame.K_r and drag_id == -1:
-                        start_id = -1
-                        end_id = -1
-                        link_id = -1
-                        points = []
-                        all_paths = []
-                        groups = []
-                    elif event.key == pygame.K_BACKSPACE:
-                        delete_point()
-                    elif event.key == pygame.K_a and drag_id == -1:
-                        hovered = find_hovered()
-                        if hovered != -1:
-                            if link_id == -1:
-                                link_id = hovered
-                            elif link_id != hovered and hovered not in points[link_id][2]:
-                                dist = round((((points[link_id][0]-points[hovered][0])**2+(points[link_id][1]-points[hovered][1])**2)**0.5)/20)
-                                points[link_id][2].append(hovered)
-                                points[hovered][2].append(link_id)
-                                points[link_id][3].append(dist)
-                                points[hovered][3].append(dist)
-                                link_id = -1
-                            else:
-                                link_id = -1
-                        else:
-                            mouse_x, mouse_y = pygame.mouse.get_pos()
-                            points.append([mouse_x, mouse_y, [], []])
+                            show_message("No Paths Found")
+                    else:
+                        show_message("No Groups Added")
+                elif event.key == pygame.K_d and drag_id == -1:
+                    start_id = -1
+                    end_id = -1
+                    pending_start = -1
+                    link_id = -1
+                    setup_grid(10, 10, 75)
+                    groups = []
+                    all_paths = []
+                    show_message("Grid Reset")
+                elif event.key == pygame.K_e and drag_id == -1:
+                    find_closest_end()
+                    show_message("End Selected")
+                elif event.key == pygame.K_r and drag_id == -1:
+                    start_id = -1
+                    end_id = -1
+                    pending_start = -1
+                    link_id = -1
+                    points = []
+                    all_paths = []
+                    groups = []
+                    show_message("All Points Cleared")
+                elif event.key == pygame.K_BACKSPACE:
+                    delete_point()
+                elif event.key == pygame.K_a and drag_id == -1:
+                    hovered = find_hovered()
+                    if hovered != -1:
+                        if link_id == -1:
+                            link_id = hovered
+                            show_message("First Point Selected")
+                        elif link_id != hovered and hovered not in points[link_id][2]:
+                            dist = round((((points[link_id][0]-points[hovered][0])**2+(points[link_id][1]-points[hovered][1])**2)**0.5)/20)
+                            points[link_id][2].append(hovered)
+                            points[hovered][2].append(link_id)
+                            points[link_id][3].append(dist)
+                            points[hovered][3].append(dist)
                             link_id = -1
+                            show_message("Points Connected")
+                        else:
+                            link_id = -1
+                            show_message("Selection Cancelled")
+                    else:
+                        mouse_x, mouse_y = pygame.mouse.get_pos()
+                        points.append([mouse_x, mouse_y, [], []])
+                        link_id = -1
+                        show_message("Point Added")
         screen.fill((0, 0, 0))
         left_down, middle_down, right_down = pygame.mouse.get_pressed()
         if left_down and len(points) > 0 and pending_start == -1:
@@ -343,7 +365,9 @@ async def main():
         else:
             drag_id = -1
         draw()
-        alpha -= 5
+        alpha -= 1
+        if alpha < 0:
+            alpha = 0
         display.set_alpha(alpha)
         screen.blit(display,(10,10))
         pygame.display.flip()
