@@ -103,7 +103,7 @@ def draw():
             pygame.draw.circle(screen, (100,255,100), (p[0], p[1]), 12.5)
         pygame.draw.circle(screen, (255,255,255), (p[0], p[1]), 10)
 
-def recursive(path_list, end_id):
+async def recursive(path_list, end_id):
     global found_path, path, expanded
     points_done = [every_path[0]]
     temp_list = every_path
@@ -125,11 +125,14 @@ def recursive(path_list, end_id):
                     return
     screen.fill((0,0,0))
     draw()
+    draw_current_path(every_path)
+    pygame.display.flip()
+    await asyncio.sleep(0)
 
     if len(temp_list[2]) != 0:
         path_list.append(2)
         path_list.append(0)
-        recursive(path_list, end_id)
+        await recursive(path_list, end_id)
     else:
         done = 0
         while done == 0:
@@ -144,7 +147,7 @@ def recursive(path_list, end_id):
                 path_list.append(2)
                 path_list.append(last_idx + 1)
                 done = 1
-        recursive(path_list, end_id)
+        await recursive(path_list, end_id)
 
 def refine_path(path):
     new_path = []
@@ -155,7 +158,7 @@ def refine_path(path):
             new_path.append(temp_list[0])
     return new_path
 
-def shortest_path(start_id, end_id):
+async def shortest_path(start_id, end_id):
     global every_path, taken_points, found_path, path, expanded
     if start_id == -1 or end_id == -1:
         return
@@ -167,7 +170,7 @@ def shortest_path(start_id, end_id):
     expanded = 1
     while time < limit and found_path == 0 and expanded:
         expanded = 0
-        recursive([], end_id)
+        await recursive([], end_id)
         draw_current_path(every_path)
         pygame.display.flip()
         clock.tick(60)
@@ -304,7 +307,7 @@ async def main():
                     if groups != []:
                         show_message("Finding Path")
                         for i in groups:
-                            shortest_path(i[0], i[1])
+                            await shortest_path(i[0], i[1])
                         if all_paths:
                             show_message("Found Path/Paths")
                         else:
@@ -373,4 +376,5 @@ async def main():
         pygame.display.flip()
         clock.tick(60)
         await asyncio.sleep(0)
+
 asyncio.run(main())
